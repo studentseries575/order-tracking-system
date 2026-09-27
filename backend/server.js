@@ -33,6 +33,12 @@ app.use(express.json());
 // ===============================
 // PRODUCTS / CATALOG
 // ===============================
+// NOTE: Each product now includes an "image" field so the frontend can
+// render proper product cards. The original 3 products (P001-P003) are
+// kept exactly as before (same id/name/price/category/stock), with an
+// image field added. New products (P004-P008) were appended after them
+// so the catalog looks like a real small e-commerce store. Adding more
+// products later is as simple as pushing another object into this array.
 
 let products = [
   {
@@ -40,21 +46,72 @@ let products = [
     name: "Wireless Headphones",
     price: 4500,
     category: "Electronics",
-    stock: 10
+    stock: 10,
+    // Verified: white wireless over-ear headphones, studio shot
+    image: "https://images.pexels.com/photos/3394665/pexels-photo-3394665.jpeg?auto=compress&cs=tinysrgb&w=600"
   },
   {
     id: "P002",
     name: "Smart Watch",
     price: 6500,
     category: "Electronics",
-    stock: 8
+    stock: 8,
+    // Verified: black smartwatch with digital display on wrist
+    image: "https://images.pexels.com/photos/267394/pexels-photo-267394.jpeg?auto=compress&cs=tinysrgb&w=600"
   },
   {
     id: "P003",
     name: "Laptop Bag",
     price: 2500,
     category: "Accessories",
-    stock: 15
+    stock: 15,
+    // Verified: brown leather laptop sleeve/bag, product shot
+    image: "https://images.pexels.com/photos/21391562/pexels-photo-21391562.jpeg?auto=compress&cs=tinysrgb&w=600"
+  },
+  {
+    id: "P004",
+    name: "Bluetooth Speaker",
+    price: 3800,
+    category: "Electronics",
+    stock: 12,
+    // Verified: black portable Bluetooth speaker, close-up product shot
+    image: "https://images.pexels.com/photos/4917455/pexels-photo-4917455.jpeg?auto=compress&cs=tinysrgb&w=600"
+  },
+  {
+    id: "P005",
+    name: "Gaming Mouse",
+    price: 2200,
+    category: "Accessories",
+    stock: 20,
+    // Verified: black gaming mouse, selective-focus product shot
+    image: "https://images.pexels.com/photos/1486294/pexels-photo-1486294.jpeg?auto=compress&cs=tinysrgb&w=600"
+  },
+  {
+    id: "P006",
+    name: "Mechanical Keyboard",
+    price: 5200,
+    category: "Accessories",
+    stock: 10,
+    // Verified: RGB backlit mechanical keyboard, close-up product shot
+    image: "https://images.pexels.com/photos/671629/pexels-photo-671629.jpeg?auto=compress&cs=tinysrgb&w=600"
+  },
+  {
+    id: "P007",
+    name: "Power Bank",
+    price: 3000,
+    category: "Electronics",
+    stock: 18,
+    // Verified: black portable power bank / portable charger
+    image: "https://images.pexels.com/photos/518530/pexels-photo-518530.jpeg?auto=compress&cs=tinysrgb&w=600"
+  },
+  {
+    id: "P008",
+    name: "USB-C Hub",
+    price: 1800,
+    category: "Accessories",
+    stock: 25,
+    // Verified: USB-C multiport hub/adapter connected to a laptop
+    image: "https://images.pexels.com/photos/4195404/pexels-photo-4195404.jpeg?auto=compress&cs=tinysrgb&w=600"
   }
 ];
 
@@ -69,7 +126,8 @@ let orders = [
     customerName: "Ayesha",
     productId: "P001",
     quantity: 1,
-    status: "Processing"
+    status: "Processing",
+    createdAt: new Date().toISOString()
   }
 ];
 
@@ -156,7 +214,8 @@ app.post(
       name,
       price,
       category,
-      stock
+      stock,
+      image
     } = req.body;
 
     if (
@@ -178,7 +237,10 @@ app.post(
       name,
       price,
       category,
-      stock
+      stock,
+      image:
+        image ||
+        `https://placehold.co/500x400/eeedff/6c63ff?text=${encodeURIComponent(name)}`
     };
 
     products.push(product);
@@ -252,6 +314,14 @@ app.post(
       });
     }
 
+    const qty = Number(quantity);
+
+    if (!Number.isFinite(qty) || qty < 1) {
+      return res.status(400).json({
+        message: "quantity must be a positive number"
+      });
+    }
+
     const product = products.find(
       (p) => p.id === productId
     );
@@ -262,20 +332,21 @@ app.post(
       });
     }
 
-    if (quantity > product.stock) {
+    if (qty > product.stock) {
       return res.status(400).json({
         message: "Not enough stock available"
       });
     }
 
-    product.stock -= quantity;
+    product.stock -= qty;
 
     const order = {
       id: "ORD-" + randomUUID().slice(0, 8),
       customerName,
       productId,
-      quantity,
-      status: "Pending"
+      quantity: qty,
+      status: "Processing",
+      createdAt: new Date().toISOString()
     };
 
     orders.push(order);
@@ -293,6 +364,9 @@ app.post(
       "orderCreated",
       order
     );
+
+    // Broadcast to everyone so dashboards / stats refresh live
+    io.emit("orderCreated", order);
 
 
     res.status(201).json({
@@ -344,6 +418,8 @@ app.put(
       "orderStatusUpdated",
       order
     );
+
+    io.emit("orderStatusUpdated", order);
 
 
     // ===============================
@@ -588,6 +664,8 @@ app.post("/rpc", (req, res) => {
       "orderStatusUpdated",
       order
     );
+
+    io.emit("orderStatusUpdated", order);
 
 
     // ===============================

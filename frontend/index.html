@@ -72,16 +72,26 @@
                 </h1>
 
                 <p class="hero-text">
-                    Monitor your order status in real time
-                    and communicate directly with our support team.
+                    Browse the catalog, place an order and watch its status
+                    update live &mdash; while chatting directly with support.
                 </p>
+            </div>
+
+            <div class="hero-name-field">
+                <label for="customerName">Ordering as</label>
+                <input
+                    type="text"
+                    id="customerName"
+                    placeholder="Your name"
+                    value="Guest"
+                >
             </div>
 
         </section>
 
 
         <!-- ========================= -->
-        <!-- DASHBOARD CARDS -->
+        <!-- DASHBOARD STATISTICS -->
         <!-- ========================= -->
 
         <section class="stats-grid">
@@ -103,12 +113,26 @@
             <div class="stat-card">
 
                 <div class="stat-icon">
+                    ⚙️
+                </div>
+
+                <div>
+                    <p>Processing</p>
+                    <h2 id="processingOrders">0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
                     🚚
                 </div>
 
                 <div>
-                    <p>Active Orders</p>
-                    <h2 id="activeOrders">0</h2>
+                    <p>Shipped</p>
+                    <h2 id="shippedOrders">0</h2>
                 </div>
 
             </div>
@@ -117,26 +141,60 @@
             <div class="stat-card">
 
                 <div class="stat-icon">
-                    🛍️
+                    ✅
                 </div>
 
                 <div>
-                    <p>Products</p>
-                    <h2 id="totalProducts">0</h2>
+                    <p>Delivered</p>
+                    <h2 id="deliveredOrders">0</h2>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================= -->
+        <!-- PRODUCT CATALOG -->
+        <!-- ========================= -->
+
+        <section class="panel catalog-panel">
+
+            <div class="panel-header">
+
+                <div>
+                    <p class="panel-label">
+                        CATALOG
+                    </p>
+
+                    <h2>Products <span id="productCount" class="count-pill">0</span></h2>
+                </div>
+
+                <div class="catalog-filters">
+
+                    <input
+                        type="text"
+                        id="productSearch"
+                        placeholder="Search products..."
+                        oninput="applyProductFilters()"
+                    >
+
+                    <select id="categoryFilter" onchange="applyProductFilters()">
+                        <option value="All">All Categories</option>
+                    </select>
+
                 </div>
 
             </div>
 
 
-            <div class="stat-card">
+            <div
+                id="productsList"
+                class="products-grid"
+            >
 
-                <div class="stat-icon">
-                    🔔
-                </div>
-
-                <div>
-                    <p>Live Alerts</p>
-                    <h2 id="alertCount">0</h2>
+                <div class="loading">
+                    Loading products...
                 </div>
 
             </div>
@@ -148,70 +206,32 @@
         <!-- ORDER TRACKING -->
         <!-- ========================= -->
 
-        <section class="dashboard-grid">
+        <section class="panel orders-panel">
 
+            <div class="panel-header">
 
-            <!-- ORDER PANEL -->
+                <div>
+                    <p class="panel-label">
+                        ORDER TRACKING
+                    </p>
 
-            <div class="panel">
-
-                <div class="panel-header">
-
-                    <div>
-                        <p class="panel-label">
-                            ORDER TRACKING
-                        </p>
-
-                        <h2>My Orders</h2>
-                    </div>
-
-                    <button
-                        class="refresh-btn"
-                        onclick="loadOrders()"
-                    >
-                        ↻ Refresh
-                    </button>
-
+                    <h2>My Orders</h2>
                 </div>
 
-
-                <div id="ordersList" class="orders-list">
-
-                    <div class="loading">
-                        Loading orders...
-                    </div>
-
-                </div>
+                <button
+                    class="refresh-btn"
+                    onclick="loadOrders()"
+                >
+                    ↻ Refresh
+                </button>
 
             </div>
 
 
-            <!-- PRODUCT PANEL -->
+            <div id="ordersList" class="orders-list">
 
-            <div class="panel">
-
-                <div class="panel-header">
-
-                    <div>
-                        <p class="panel-label">
-                            CATALOG
-                        </p>
-
-                        <h2>Products</h2>
-                    </div>
-
-                </div>
-
-
-                <div
-                    id="productsList"
-                    class="products-list"
-                >
-
-                    <div class="loading">
-                        Loading products...
-                    </div>
-
+                <div class="loading">
+                    Loading orders...
                 </div>
 
             </div>
@@ -260,7 +280,7 @@
                 >
 
                     <div class="empty-chat">
-                        Select an order to start a conversation.
+                        Select an order below to start a conversation.
                     </div>
 
                 </div>
@@ -321,7 +341,7 @@
                             SERVER-SENT EVENTS
                         </p>
 
-                        <h2>Live System Alerts</h2>
+                        <h2>Live System Alerts <span id="alertCount" class="count-pill">0</span></h2>
 
                     </div>
 
@@ -352,6 +372,46 @@
 
 
     </main>
+
+
+    <!-- ========================= -->
+    <!-- ORDER SUCCESS MODAL -->
+    <!-- ========================= -->
+
+    <div id="orderModalOverlay" class="modal-overlay">
+
+        <div class="modal">
+
+            <div class="modal-icon">🎉</div>
+
+            <h2>Order Placed Successfully!</h2>
+
+            <div class="modal-details">
+                <div class="modal-row">
+                    <span>Order ID</span>
+                    <strong id="modalOrderId">-</strong>
+                </div>
+                <div class="modal-row">
+                    <span>Product</span>
+                    <strong id="modalProduct">-</strong>
+                </div>
+                <div class="modal-row">
+                    <span>Quantity</span>
+                    <strong id="modalQuantity">-</strong>
+                </div>
+                <div class="modal-row">
+                    <span>Status</span>
+                    <strong id="modalStatus">-</strong>
+                </div>
+            </div>
+
+            <button class="modal-close-btn" onclick="closeOrderModal()">
+                Track My Order
+            </button>
+
+        </div>
+
+    </div>
 
 
     <!-- ========================= -->

@@ -16,6 +16,13 @@ let ordersData = [];
 let productsData = [];
 let alertCount = 0;
 
+// Quantity chosen for each product (productId -> qty)
+let quantities = {};
+
+// Current search / category filter state
+let searchTerm = "";
+let categoryFilter = "All";
+
 
 // =========================================
 // DOM ELEMENTS
@@ -25,18 +32,25 @@ const socketStatus = document.getElementById("socketStatus");
 const socketStatusDot = document.getElementById("socketStatusDot");
 
 const totalOrders = document.getElementById("totalOrders");
-const activeOrders = document.getElementById("activeOrders");
-const totalProducts = document.getElementById("totalProducts");
-const alertCountElement = document.getElementById("alertCount");
+const processingOrdersEl = document.getElementById("processingOrders");
+const shippedOrdersEl = document.getElementById("shippedOrders");
+const deliveredOrdersEl = document.getElementById("deliveredOrders");
 
 const ordersList = document.getElementById("ordersList");
 const productsList = document.getElementById("productsList");
+const productCount = document.getElementById("productCount");
+const productSearch = document.getElementById("productSearch");
+const categoryFilterSelect = document.getElementById("categoryFilter");
+const customerNameInput = document.getElementById("customerName");
 
 const currentRoom = document.getElementById("currentRoom");
 const chatMessages = document.getElementById("chatMessages");
 
 const alertsList = document.getElementById("alertsList");
 const sseStatus = document.getElementById("sseStatus");
+const alertCountElement = document.getElementById("alertCount");
+
+const orderModalOverlay = document.getElementById("orderModalOverlay");
 
 
 // =========================================
@@ -104,10 +118,19 @@ async function loadProducts() {
 
         productsData = await response.json();
 
-        displayProducts(productsData);
+        // Make sure every product has a quantity of at least 1 selected
+        productsData.forEach((product) => {
 
-        totalProducts.innerText =
-            productsData.length;
+            if (!quantities[product.id]) {
+                quantities[product.id] = 1;
+            }
+        });
+
+        populateCategoryFilter(productsData);
+
+        applyProductFilters();
+
+        productCount.innerText = productsData.length;
 
     } catch (error) {
 
@@ -118,10 +141,60 @@ async function loadProducts() {
 
         productsList.innerHTML = `
             <div class="loading">
-                Unable to load products.
+                Unable to connect to server. Please try again.
             </div>
         `;
     }
+}
+
+
+// =========================================
+// CATEGORY FILTER DROPDOWN
+// =========================================
+
+function populateCategoryFilter(products) {
+
+    const categories = Array.from(
+        new Set(products.map((p) => p.category))
+    ).sort();
+
+    const previousValue = categoryFilterSelect.value || "All";
+
+    categoryFilterSelect.innerHTML =
+        `<option value="All">All Categories</option>` +
+        categories
+            .map((category) => `<option value="${escapeHTML(category)}">${escapeHTML(category)}</option>`)
+            .join("");
+
+    // Restore previous selection if it still exists
+    if ([...categoryFilterSelect.options].some((o) => o.value === previousValue)) {
+        categoryFilterSelect.value = previousValue;
+    }
+}
+
+
+// =========================================
+// APPLY SEARCH / CATEGORY FILTERS
+// =========================================
+
+function applyProductFilters() {
+
+    searchTerm = productSearch.value.trim().toLowerCase();
+    categoryFilter = categoryFilterSelect.value;
+
+    let filtered = productsData;
+
+    if (searchTerm) {
+        filtered = filtered.filter((p) =>
+            p.name.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    if (categoryFilter !== "All") {
+        filtered = filtered.filter((p) => p.category === categoryFilter);
+    }
+
+    displayProducts(filtered);
 }
 
 
@@ -135,7 +208,7 @@ function displayProducts(products) {
 
         productsList.innerHTML = `
             <div class="loading">
-                No products available.
+                No products match your search.
             </div>
         `;
 
@@ -146,26 +219,60 @@ function displayProducts(products) {
     productsList.innerHTML =
         products.map(product => {
 
+            const qty = quantities[product.id] || 1;
+            const outOfStock = product.stock <= 0;
+
+            const stockClass =
+                outOfStock ? "out" : (product.stock <= 5 ? "low" : "");
+
+            const stockLabel =
+                outOfStock ? "Out of stock" : `${product.stock} in stock`;
+
+            const footer = outOfStock
+                ? `<div class="out-of-stock-badge">Out of Stock</div>`
+                : `
+                    <div class="qty-control">
+                        <button type="button" onclick="changeQuantity('${product.id}', -1)" ${qty <= 1 ? "disabled" : ""}>−</button>
+                        <span>${qty}</span>
+                        <button type="button" onclick="changeQuantity('${product.id}', 1)" ${qty >= product.stock ? "disabled" : ""}>+</button>
+                    </div>
+                    <button class="place-order-btn" onclick="placeOrder('${product.id}')">
+                        Place Order
+                    </button>
+                `;
+
             return `
                 <div class="product-card">
 
-                    <div class="product-name">
-                        ${escapeHTML(product.name)}
+                    <div class="product-image-wrap">
+                        <img
+                            src="${escapeHTML(product.image || '')}"
+                            alt="${escapeHTML(product.name)}"
+                            loading="lazy"
+                            onerror="this.onerror=null;this.src='https://placehold.co/500x400/eeedff/6c63ff?text=${encodeURIComponent(product.name)}'"
+                        >
+                        <span class="product-category-badge">${escapeHTML(product.category)}</span>
                     </div>
 
-                    <div class="product-category">
-                        ${escapeHTML(product.category)}
-                    </div>
+                    <div class="product-body">
 
-                    <div class="product-bottom">
+                        <div class="product-name">
+                            ${escapeHTML(product.name)}
+                        </div>
 
-                        <span class="product-price">
-                            Rs. ${Number(product.price).toLocaleString()}
-                        </span>
+                        <div class="product-bottom">
 
-                        <span class="product-stock">
-                            Stock: ${product.stock}
-                        </span>
+                            <span class="product-price">
+                                Rs. ${Number(product.price).toLocaleString()}
+                            </span>
+
+                            <span class="product-stock ${stockClass}">
+                                ${stockLabel}
+                            </span>
+
+                        </div>
+
+                        ${footer}
 
                     </div>
 
@@ -173,6 +280,142 @@ function displayProducts(products) {
             `;
 
         }).join("");
+}
+
+
+// =========================================
+// QUANTITY CONTROLS
+// =========================================
+
+function changeQuantity(productId, delta) {
+
+    const product = productsData.find((p) => p.id === productId);
+
+    if (!product) {
+        return;
+    }
+
+    const current = quantities[productId] || 1;
+    let next = current + delta;
+
+    if (next < 1) {
+        next = 1;
+    }
+
+    if (next > product.stock) {
+        next = product.stock;
+    }
+
+    quantities[productId] = next;
+
+    applyProductFilters();
+}
+
+
+// =========================================
+// PLACE ORDER
+// =========================================
+
+async function placeOrder(productId) {
+
+    const product = productsData.find((p) => p.id === productId);
+
+    if (!product) {
+        showToast("Product could not be found.");
+        return;
+    }
+
+    const quantity = quantities[productId] || 1;
+
+    if (quantity < 1) {
+        showToast("Please select a valid quantity.");
+        return;
+    }
+
+    if (quantity > product.stock) {
+        showToast("Not enough stock available.");
+        return;
+    }
+
+    const customerName =
+        (customerNameInput.value || "").trim() || "Guest";
+
+
+    // Disable the button briefly and show a loading state
+    showToast("Placing order...");
+
+    try {
+
+        const response = await fetch(
+            `${API_URL}/api/v1/orders`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    customerName,
+                    productId,
+                    quantity
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            showToast(data.message || "Order could not be created.");
+            return;
+        }
+
+        const order = data.order;
+
+        // Reset quantity selector for this product back to 1
+        quantities[productId] = 1;
+
+        // Refresh product + order data so the UI reflects new stock/order
+        await loadProducts();
+        await loadOrders();
+
+        openOrderModal(order, product);
+
+    } catch (error) {
+
+        console.error("Place order error:", error);
+
+        showToast("Unable to connect to server. Please try again.");
+    }
+}
+
+
+// =========================================
+// ORDER SUCCESS MODAL
+// =========================================
+
+function openOrderModal(order, product) {
+
+    document.getElementById("modalOrderId").innerText = order.id;
+    document.getElementById("modalProduct").innerText = product ? product.name : order.productId;
+    document.getElementById("modalQuantity").innerText = order.quantity;
+    document.getElementById("modalStatus").innerText = order.status;
+
+    orderModalOverlay.classList.add("show");
+}
+
+function closeOrderModal() {
+
+    const orderId = document.getElementById("modalOrderId").innerText;
+
+    orderModalOverlay.classList.remove("show");
+
+    if (orderId && orderId !== "-") {
+        selectOrder(orderId);
+
+        const el = document.getElementById(`order-${orderId}`);
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+    }
 }
 
 
@@ -209,10 +452,56 @@ async function loadOrders() {
 
         ordersList.innerHTML = `
             <div class="loading">
-                Unable to load orders.
+                Unable to connect to server. Please try again.
             </div>
         `;
     }
+}
+
+
+// =========================================
+// ORDER TIMELINE
+// =========================================
+
+const TIMELINE_STEPS = ["Placed", "Processing", "Shipped", "Delivered"];
+
+function statusToStepIndex(status) {
+
+    const value = (status || "").toLowerCase();
+
+    if (value === "pending" || value === "processing") return 1;
+    if (value === "shipped") return 2;
+    if (value === "delivered") return 3;
+
+    return 0;
+}
+
+function renderTimeline(order) {
+
+    if ((order.status || "").toLowerCase() === "cancelled") {
+
+        return `
+            <div class="order-timeline">
+                <div class="timeline-step cancelled done">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-label">Cancelled</div>
+                </div>
+            </div>
+        `;
+    }
+
+    const activeStep = statusToStepIndex(order.status);
+
+    return `
+        <div class="order-timeline">
+            ${TIMELINE_STEPS.map((label, index) => `
+                <div class="timeline-step ${index <= activeStep ? "done" : ""}">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-label">${label}</div>
+                </div>
+            `).join("")}
+        </div>
+    `;
 }
 
 
@@ -235,18 +524,28 @@ function displayOrders(orders) {
 
 
     ordersList.innerHTML =
-        orders.map(order => {
+        orders.slice().reverse().map(order => {
 
             const selected =
                 selectedOrderId === order.id
                     ? "selected"
                     : "";
 
+            const product = productsData.find((p) => p.id === order.productId);
+            const productName = product ? product.name : order.productId;
+
+            const isCancelled = (order.status || "").toLowerCase() === "cancelled";
+            const isDelivered = (order.status || "").toLowerCase() === "delivered";
+            const canCancel = !isCancelled && !isDelivered;
+
+            const timeLabel = order.createdAt
+                ? new Date(order.createdAt).toLocaleString()
+                : "";
 
             return `
                 <div
+                    id="order-${order.id}"
                     class="order-card ${selected}"
-                    onclick="selectOrder('${order.id}')"
                 >
 
                     <div class="order-top">
@@ -272,14 +571,26 @@ function displayOrders(orders) {
 
                         <span>
                             Product:
-                            ${escapeHTML(order.productId)}
+                            ${escapeHTML(productName)}
                         </span>
 
                         <span>
-                            Qty:
-                            ${order.quantity}
+                            Qty: ${order.quantity}
                         </span>
 
+                    </div>
+
+                    ${timeLabel ? `<div class="order-time">Placed: ${escapeHTML(timeLabel)}</div>` : ""}
+
+                    ${renderTimeline(order)}
+
+                    <div class="order-actions">
+                        <button class="track-btn" onclick="selectOrder('${order.id}')">
+                            💬 Track / Chat
+                        </button>
+                        <button class="cancel-btn" onclick="cancelOrder('${order.id}')" ${canCancel ? "" : "disabled"}>
+                            ✕ Cancel
+                        </button>
                     </div>
 
                 </div>
@@ -295,27 +606,16 @@ function displayOrders(orders) {
 
 function updateOrderStats(orders) {
 
-    totalOrders.innerText =
-        orders.length;
+    totalOrders.innerText = orders.length;
 
+    const count = (status) =>
+        orders.filter((o) => (o.status || "").toLowerCase() === status).length;
 
-    const activeStatuses = [
-        "Pending",
-        "Processing",
-        "Shipped"
-    ];
-
-
-    const active =
-        orders.filter(order =>
-            activeStatuses.includes(
-                order.status
-            )
-        );
-
-
-    activeOrders.innerText =
-        active.length;
+    // "Pending" orders are counted alongside "Processing" since they
+    // represent orders that have been placed but not yet shipped.
+    processingOrdersEl.innerText = count("processing") + count("pending");
+    shippedOrdersEl.innerText = count("shipped");
+    deliveredOrdersEl.innerText = count("delivered");
 }
 
 
@@ -380,18 +680,20 @@ socket.on(
     "orderCreated",
     (order) => {
 
-        showToast(
-            `New order created: ${order.id}`
-        );
+        // Update local order data
+        const exists = ordersData.some((item) => item.id === order.id);
 
+        if (!exists) {
 
-        addAlert(
-            `New order created: ${order.id}`
-        );
+            ordersData.push(order);
 
+            addAlert(
+                `New order created: ${order.id}`
+            );
 
-        loadOrders();
-        loadProducts();
+            displayOrders(ordersData);
+            updateOrderStats(ordersData);
+        }
     }
 );
 
@@ -405,7 +707,7 @@ socket.on(
     (order) => {
 
         showToast(
-            `Order ${order.id} is now ${order.status}`
+            `Order ${order.id} status updated to ${order.status}`
         );
 
 
@@ -763,10 +1065,6 @@ function connectSSE() {
             addAlert(
                 data.message
             );
-
-
-            loadOrders();
-            loadProducts();
         }
     );
 
@@ -803,10 +1101,6 @@ function connectSSE() {
             addAlert(
                 data.message
             );
-
-
-            loadOrders();
-            loadProducts();
         }
     );
 
@@ -821,6 +1115,23 @@ function connectSSE() {
                     event.data
                 );
 
+
+            addAlert(
+                data.message
+            );
+        }
+    );
+
+
+    // System alert (e.g. new product added)
+    eventSource.addEventListener(
+        "systemAlert",
+        (event) => {
+
+            const data =
+                JSON.parse(
+                    event.data
+                );
 
             addAlert(
                 data.message
@@ -907,6 +1218,10 @@ async function cancelOrder(
     orderId
 ) {
 
+    if (!confirm(`Cancel order ${orderId}?`)) {
+        return;
+    }
+
     try {
 
         const response =
@@ -973,7 +1288,7 @@ async function cancelOrder(
         );
 
         showToast(
-            "Unable to cancel order"
+            "Unable to connect to server. Please try again."
         );
     }
 }
@@ -986,7 +1301,7 @@ async function cancelOrder(
 function getStatusClass(status) {
 
     const value =
-        status.toLowerCase();
+        (status || "").toLowerCase();
 
 
     if (value === "pending") {
@@ -1098,9 +1413,9 @@ async function initializeApp() {
     );
 
 
-    await loadOrders();
-
     await loadProducts();
+
+    await loadOrders();
 
     connectSSE();
 
