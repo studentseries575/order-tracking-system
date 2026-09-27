@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket.io Test</title>
+</head>
+
+<body>
+
+  <h1>Real-Time Order Tracking Test</h1>
+
+  <p id="connectionStatus">
+    Connecting...
+  </p>
+
+  <hr>
+
+  <h2>Join Order</h2>
+
+  <input
+    id="orderId"
+    value="ORD001"
+    placeholder="Enter Order ID"
+  >
+
+  <button onclick="joinOrder()">
+    Join Order
+  </button>
+
+  <p id="joinStatus"></p>
+
+  <hr>
+
+  <h2>Live Support Chat</h2>
+
+  <input
+    id="sender"
+    value="Customer"
+    placeholder="Sender"
+  >
+
+  <br><br>
+
+  <input
+    id="message"
+    placeholder="Type message"
+  >
+
+  <button onclick="sendMessage()">
+    Send Message
+  </button>
+
+  <h3>Messages</h3>
+
+  <div id="messages"></div>
+
+
+  <script src="https://cdn.socket.io/4.8.4/socket.io.min.js"></script>
+
+  <script>
+
+    const socket = io("http://localhost:5000");
+
+    let currentOrderId = "";
+
+
+    // Connection
+    socket.on("connect", () => {
+
+      document.getElementById(
+        "connectionStatus"
+      ).innerText =
+        "Connected to Socket.io: " + socket.id;
+
+      console.log(
+        "Connected:",
+        socket.id
+      );
+
+    });
+
+
+    // Connection error
+    socket.on("connect_error", (error) => {
+
+      document.getElementById(
+        "connectionStatus"
+      ).innerText =
+        "Connection Error: " + error.message;
+
+    });
+
+
+    // Join order
+    function joinOrder() {
+
+      const orderId =
+        document.getElementById(
+          "orderId"
+        ).value;
+
+      if (!orderId) {
+        alert("Please enter Order ID");
+        return;
+      }
+
+      currentOrderId = orderId;
+
+      socket.emit(
+        "joinOrder",
+        orderId
+      );
+    }
+
+
+    // Joined order response
+    socket.on(
+      "joinedOrder",
+      (data) => {
+
+        document.getElementById(
+          "joinStatus"
+        ).innerText =
+          data.message;
+
+      }
+    );
+
+
+    // Send chat message
+    function sendMessage() {
+
+      const message =
+        document.getElementById(
+          "message"
+        ).value;
+
+      const sender =
+        document.getElementById(
+          "sender"
+        ).value;
+
+
+      if (!currentOrderId) {
+
+        alert(
+          "First join an order"
+        );
+
+        return;
+      }
+
+
+      if (!message) {
+
+        alert(
+          "Please enter a message"
+        );
+
+        return;
+      }
+
+
+      socket.emit(
+        "sendMessage",
+        {
+          orderId: currentOrderId,
+          sender: sender,
+          message: message
+        }
+      );
+
+
+      document.getElementById(
+        "message"
+      ).value = "";
+    }
+
+
+    // Receive chat message
+    socket.on(
+      "receiveMessage",
+      (data) => {
+
+        const div =
+          document.createElement(
+            "div"
+          );
+
+        div.innerHTML =
+          `<strong>${data.sender}:</strong>
+           ${data.message}
+           <small>(${data.time})</small>`;
+
+        document.getElementById(
+          "messages"
+        ).appendChild(div);
+
+      }
+    );
+
+
+    // Real-time order status
+    socket.on(
+      "orderStatusUpdated",
+      (order) => {
+
+        const div =
+          document.createElement(
+            "div"
+          );
+
+        div.innerHTML =
+          `<strong>Order Status Updated:</strong>
+           ${order.id} → ${order.status}`;
+
+        document.getElementById(
+          "messages"
+        ).appendChild(div);
+
+      }
+    );
+
+  </script>
+
+</body>
+</html>

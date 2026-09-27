@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>OrderTrack - Real-Time Order Tracker</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+    <!-- Socket.io Client -->
+    <script src="https://cdn.socket.io/4.8.4/socket.io.min.js"></script>
+</head>
+
+
+<body>
+
+    <!-- ========================= -->
+    <!-- NAVBAR -->
+    <!-- ========================= -->
+
+    <nav class="navbar">
+
+        <div class="logo">
+            <span class="logo-icon">📦</span>
+            <span>OrderTrack</span>
+        </div>
+
+        <div class="nav-status">
+            <span
+                id="socketStatusDot"
+                class="status-dot offline"
+            ></span>
+
+            <span id="socketStatus">
+                Connecting...
+            </span>
+        </div>
+
+    </nav>
+
+
+    <!-- ========================= -->
+    <!-- MAIN CONTAINER -->
+    <!-- ========================= -->
+
+    <main class="container">
+
+
+        <!-- ========================= -->
+        <!-- HERO -->
+        <!-- ========================= -->
+
+        <section class="hero">
+
+            <div>
+                <p class="eyebrow">
+                    REAL-TIME ORDER TRACKING
+                </p>
+
+                <h1>
+                    Track your order.
+                    <span>Stay connected.</span>
+                </h1>
+
+                <p class="hero-text">
+                    Monitor your order status in real time
+                    and communicate directly with our support team.
+                </p>
+            </div>
+
+        </section>
+
+
+        <!-- ========================= -->
+        <!-- DASHBOARD CARDS -->
+        <!-- ========================= -->
+
+        <section class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    📦
+                </div>
+
+                <div>
+                    <p>Total Orders</p>
+                    <h2 id="totalOrders">0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    🚚
+                </div>
+
+                <div>
+                    <p>Active Orders</p>
+                    <h2 id="activeOrders">0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    🛍️
+                </div>
+
+                <div>
+                    <p>Products</p>
+                    <h2 id="totalProducts">0</h2>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    🔔
+                </div>
+
+                <div>
+                    <p>Live Alerts</p>
+                    <h2 id="alertCount">0</h2>
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================= -->
+        <!-- ORDER TRACKING -->
+        <!-- ========================= -->
+
+        <section class="dashboard-grid">
+
+
+            <!-- ORDER PANEL -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <p class="panel-label">
+                            ORDER TRACKING
+                        </p>
+
+                        <h2>My Orders</h2>
+                    </div>
+
+                    <button
+                        class="refresh-btn"
+                        onclick="loadOrders()"
+                    >
+                        ↻ Refresh
+                    </button>
+
+                </div>
+
+
+                <div id="ordersList" class="orders-list">
+
+                    <div class="loading">
+                        Loading orders...
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- PRODUCT PANEL -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+                        <p class="panel-label">
+                            CATALOG
+                        </p>
+
+                        <h2>Products</h2>
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="productsList"
+                    class="products-list"
+                >
+
+                    <div class="loading">
+                        Loading products...
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================= -->
+        <!-- LIVE SUPPORT -->
+        <!-- ========================= -->
+
+        <section class="support-section">
+
+            <div class="panel support-panel">
+
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <p class="panel-label">
+                            LIVE SUPPORT
+                        </p>
+
+                        <h2>Customer Support Chat</h2>
+
+                    </div>
+
+                    <div class="room-info">
+
+                        Room:
+                        <strong id="currentRoom">
+                            Not joined
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Chat messages -->
+
+                <div
+                    id="chatMessages"
+                    class="chat-messages"
+                >
+
+                    <div class="empty-chat">
+                        Select an order to start a conversation.
+                    </div>
+
+                </div>
+
+
+                <!-- Chat input -->
+
+                <div class="chat-input-area">
+
+                    <select id="sender">
+
+                        <option value="Customer">
+                            Customer
+                        </option>
+
+                        <option value="Support Agent">
+                            Support Agent
+                        </option>
+
+                    </select>
+
+
+                    <input
+                        type="text"
+                        id="chatInput"
+                        placeholder="Type your message..."
+                        onkeydown="handleChatKey(event)"
+                    >
+
+
+                    <button
+                        class="send-btn"
+                        onclick="sendChatMessage()"
+                    >
+                        Send
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================= -->
+        <!-- LIVE ALERTS -->
+        <!-- ========================= -->
+
+        <section class="alerts-section">
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <p class="panel-label">
+                            SERVER-SENT EVENTS
+                        </p>
+
+                        <h2>Live System Alerts</h2>
+
+                    </div>
+
+                    <span
+                        id="sseStatus"
+                        class="sse-badge"
+                    >
+                        Connecting...
+                    </span>
+
+                </div>
+
+
+                <div
+                    id="alertsList"
+                    class="alerts-list"
+                >
+
+                    <div class="empty-alert">
+                        Waiting for live alerts...
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+
+    <!-- ========================= -->
+    <!-- TOAST NOTIFICATION -->
+    <!-- ========================= -->
+
+    <div
+        id="toast"
+        class="toast"
+    >
+        <span id="toastMessage"></span>
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- JAVASCRIPT -->
+    <!-- ========================= -->
+
+    <script src="app.js"></script>
+
+</body>
+
+</html>
