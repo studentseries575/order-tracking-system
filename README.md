@@ -498,16 +498,31 @@ After deployment, the frontend will have a public URL such as:
 The project includes testing and interface screenshots showing:
 
 1. Main dashboard
-2. Order tracking
-3. Product catalog
-4. Socket.io connection
-5. Real-time support chat
-6. Real-time order status update
-7. SSE live alerts
-8. REST API testing in Postman
-9. JSON-RPC testing in Postman
+   <img width="1867" height="1055" alt="image" src="https://github.com/user-attachments/assets/53efc226-71d8-44c5-b7bb-73fcb5797d2a" />
 
-Screenshots can be added to this section after final deployment and testing.
+2. Order tracking
+   <img width="1865" height="1042" alt="image" src="https://github.com/user-attachments/assets/49048945-930d-466c-b27f-d38f207d6698" />
+
+3. Product catalog
+   <img width="1862" height="1045" alt="image" src="https://github.com/user-attachments/assets/e0b59d46-206b-4127-8d03-7b997cf8b80b" />
+
+4. Socket.io connection
+   <img width="1862" height="1050" alt="image" src="https://github.com/user-attachments/assets/3bed6fd0-f825-42b5-8ec9-8bbda3f4564b" />
+
+5. Real-time support chat
+    <img width="1867" height="1035" alt="image" src="https://github.com/user-attachments/assets/ce66ef8d-689a-4872-9efd-cfa7cd6cb361" />
+
+6. Real-time order status update
+    <img width="1866" height="1025" alt="image" src="https://github.com/user-attachments/assets/d1538bf3-f33d-4b30-9d7f-19d88f09d394" />
+
+7. SSE live alerts
+    <img width="1865" height="1032" alt="image" src="https://github.com/user-attachments/assets/6f70f602-97bb-445b-97b3-3eb87a27ffce" />
+
+8. REST API testing in Postman
+    <img width="1920" height="1005" alt="image" src="https://github.com/user-attachments/assets/b9b11089-d567-46a5-836c-7185bb578627" />
+
+9. JSON-RPC testing in Postman
+    <img width="1920" height="975" alt="image" src="https://github.com/user-attachments/assets/acb89dce-991d-4c49-a770-b17246c519ce" />
 
 ---
 
